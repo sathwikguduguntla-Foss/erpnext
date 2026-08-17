@@ -4,12 +4,14 @@ from frappe.model.docstatus import DocStatus
 
 
 def execute(filters=None):
-	group_fieldname = filters.pop("group_by", None)
+	group_fieldname = None
+	if filters and isinstance(filters, dict):
+		group_fieldname = filters.pop("group_by", None)
 
 	filters = frappe._dict(filters or {})
 	columns = get_columns(filters, group_fieldname)
-
 	data = get_data(filters, group_fieldname)
+
 	return columns, data
 
 
@@ -38,8 +40,9 @@ def get_columns(filters, group_fieldname=None):
 			"hidden": int(bool(filters.get("employee"))),
 		},
 	}
+
 	columns = []
-	if group_fieldname:
+	if group_fieldname and group_fieldname in group_columns:
 		columns.append(group_columns.get(group_fieldname))
 		columns.extend(
 			column for column in group_columns.values() if column.get("fieldname") != group_fieldname
@@ -51,7 +54,7 @@ def get_columns(filters, group_fieldname=None):
 		[
 			{
 				"label": _("Employee Name"),
-				"fieldtype": "data",
+				"fieldtype": "Data",
 				"fieldname": "employee_name",
 				"hidden": 1,
 			},
@@ -112,10 +115,20 @@ def get_data(filters, group_fieldname=None):
 		order_by="`tabTimesheet Detail`.from_time",
 	)
 
-	return group_by(data, group_fieldname) if group_fieldname else data
+	# If no grouping field is provided, return a flat list with no tree/group attributes
+	if not group_fieldname:
+		for row in data:
+			row.pop("indent", None)
+			row.pop("is_group", None)
+		return data
+
+	return group_by(data, group_fieldname)
 
 
 def group_by(data, fieldname):
+	if not fieldname:
+		return data
+
 	groups = {}
 	for row in data:
 		groups.setdefault(row.get(fieldname), []).append(row)
@@ -133,6 +146,12 @@ def group_by(data, fieldname):
 			_row[fieldname] = None
 			_row["indent"] = 1
 			_row["is_group"] = 0
+
+			# Clear numeric values on child rows so Frappe's footer totalizer doesn't double count them
+			_row["hours"] = 0
+			_row["billing_hours"] = 0
+			_row["billing_amount"] = 0
+
 			child_rows.append(_row)
 
 		group_row = {
