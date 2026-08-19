@@ -58,7 +58,7 @@ def get_columns(filters, group_fieldname=None):
 		[
 			{
 				"label": _("Employee Name"),
-				"fieldtype": "Data",
+				"fieldtype": "data",
 				"fieldname": "employee_name",
 				"hidden": 1,
 			},
