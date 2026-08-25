@@ -92,10 +92,13 @@ def get_data(filters, group_fieldname=None):
 		_filters.append(("employee", "=", filters.get("employee")))
 	if filters.get("project"):
 		_filters.append(("Timesheet Detail", "project", "=", filters.get("project")))
-	if filters.get("from_date"):
+	if filters.get("from_date") and filters.get("to_date"):
+		_filters.append(("Timesheet Detail", "from_time", "between", [filters.get("from_date"), filters.get("to_date")]))
+	elif filters.get("from_date"):
 		_filters.append(("Timesheet Detail", "from_time", ">=", filters.get("from_date")))
-	if filters.get("to_date"):
-		_filters.append(("Timesheet Detail", "to_time", "<=", filters.get("to_date") + " 23:59:59"))
+	elif filters.get("to_date"):
+		_filters.append(("Timesheet Detail", "from_time", "<=", filters.get("to_date")))
+		
 	if not filters.get("include_draft_timesheets"):
 		_filters.append(("docstatus", "=", DocStatus.submitted()))
 	else:
