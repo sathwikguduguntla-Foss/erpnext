@@ -201,6 +201,9 @@ class PurchaseOrder(BuyingController):
 			self.status_updater[0]["source_field"] = "fg_item_qty"
 
 	def validate(self):
+		# Custom validation before ERPNext core validation.
+		self.validate_item_values()
+
 		super().validate()
 
 		self.set_status()
@@ -226,6 +229,37 @@ class PurchaseOrder(BuyingController):
 			self.doctype, self.supplier, self.company, self.inter_company_order_reference
 		)
 		self.reset_default_field_value("set_warehouse", "items", "warehouse")
+
+	def validate_item_values(self):
+		"""Validate Quantity, Rate, and Amount for every Purchase Order item."""
+		for row in self.get("items"):
+			if not row.item_code:
+				continue
+
+			invalid_fields = []
+
+			if flt(row.qty) <= 0:
+				invalid_fields.append(_("Quantity"))
+
+			if flt(row.rate) <= 0:
+				invalid_fields.append(_("Rate"))
+
+			if flt(row.amount) <= 0:
+				invalid_fields.append(_("Amount"))
+
+			if invalid_fields:
+				if len(invalid_fields) == 1:
+					field_text = invalid_fields[0]
+				elif len(invalid_fields) == 2:
+					field_text = _("{0} and {1}").format(invalid_fields[0], invalid_fields[1])
+				else:
+					field_text = _("Quantity, Rate and Amount")
+
+				frappe.throw(
+					_("Row #{0}: {1} for Item {2} cannot be zero.").format(
+						row.idx, field_text, frappe.bold(row.item_code)
+					)
+				)
 
 	def set_has_unit_price_items(self):
 		"""
